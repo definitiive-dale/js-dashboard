@@ -13,10 +13,27 @@
         const response = await fetch(csvUrl);
         const csvText = await response.text();
 
-        const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
-        const headers = rows[0];
-        const nameColumn = rows.map(row => row[0]);
+        // Split rows safely, preserving quoted commas
+        const rawRows = csvText.trim().split('\n');
+        const rows = rawRows.map(row => {
+          const cells = [];
+          let inQuotes = false, value = '';
+          for (let i = 0; i < row.length; i++) {
+            const char = row[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              cells.push(value.trim());
+              value = '';
+            } else {
+              value += char;
+            }
+          }
+          cells.push(value.trim());
+          return cells;
+        });
 
+        const headers = rows[0];
         const chartsContainer = document.getElementById('charts_container');
         chartsContainer.innerHTML = '';
 
