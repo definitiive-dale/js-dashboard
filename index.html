@@ -8,21 +8,42 @@
     google.charts.setOnLoadCallback(drawChart);
 
     async function drawChart() {
-      const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vStLYy-cTvUYzFwdJi3MxQkCa0Lw_RPJBZQf1u7SmFnYcHtHrBRMhRJtYqrkh8JpxmZvImSwk4xvDWx/pub?gid=118464978&single=true&output=csv';
-      const response = await fetch(csvUrl);
-      const csvText = await response.text();
+      try {
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vStLYy-cTvUYzFwdJi3MxQkCa0Lw_RPJBZQf1u7SmFnYcHtHrBRMhRJtYqrkh8JpxmZvImSwk4xvDWx/pub?gid=118464978&single=true&output=csv';
+        const response = await fetch(csvUrl);
+        const csvText = await response.text();
 
-      const rows = csvText.trim().split('\n').map(row => row.split(','));
-      const data = google.visualization.arrayToDataTable(rows);
+        const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
+        const headers = rows[0];
 
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
-      chart.draw(data, {
-        title: 'JS Carpentry Live Data Chart',
-        hAxis: { title: rows[0][0] },
-        vAxis: { title: rows[0][1] },
-        chartArea: { width: '75%' },
-        legend: { position: 'none' }
-      });
+        // Convert numeric fields, starting from second row
+        const parsed = [headers];
+        for (let i = 1; i < rows.length; i++) {
+          const name = rows[i][0];
+          const value = parseFloat(rows[i][1].replace(/[^0-9.-]+/g, ''));
+          if (!name || isNaN(value)) continue;
+          parsed.push([name, value]);
+        }
+
+        if (parsed.length <= 1) {
+          document.getElementById('chart_div').innerHTML = '<b>No valid data found.</b>';
+          return;
+        }
+
+        const data = google.visualization.arrayToDataTable(parsed);
+
+        const chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+        chart.draw(data, {
+          title: 'JS Carpentry Live Data Chart',
+          hAxis: { title: headers[0] },
+          vAxis: { title: headers[1] },
+          chartArea: { width: '75%' },
+          legend: { position: 'none' }
+        });
+      } catch (err) {
+        document.getElementById('chart_div').innerHTML = `<b>Error:</b> ${err.message}`;
+        console.error('Chart error:', err);
+      }
     }
   </script>
   <style>
