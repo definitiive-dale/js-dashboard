@@ -5,9 +5,9 @@
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <script type="text/javascript">
     google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(drawChart);
+    google.charts.setOnLoadCallback(drawAllCharts);
 
-    async function drawChart() {
+    async function drawAllCharts() {
       try {
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vStLYy-cTvUYzFwdJi3MxQkCa0Lw_RPJBZQf1u7SmFnYcHtHrBRMhRJtYqrkh8JpxmZvImSwk4xvDWx/pub?gid=118464978&single=true&output=csv';
         const response = await fetch(csvUrl);
@@ -15,33 +15,41 @@
 
         const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
         const headers = rows[0];
+        const nameColumn = rows.map(row => row[0]);
 
-        // Convert numeric fields, starting from second row
-        const parsed = [headers];
-        for (let i = 1; i < rows.length; i++) {
-          const name = rows[i][0];
-          const value = parseFloat(rows[i][1].replace(/[^0-9.-]+/g, ''));
-          if (!name || isNaN(value)) continue;
-          parsed.push([name, value]);
+        const chartsContainer = document.getElementById('charts_container');
+        chartsContainer.innerHTML = '';
+
+        for (let col = 1; col < headers.length; col++) {
+          const chartData = [[headers[0], headers[col]]];
+
+          for (let i = 1; i < rows.length; i++) {
+            const name = rows[i][0];
+            const rawValue = rows[i][col];
+            const value = parseFloat(rawValue.replace(/[^0-9.-]+/g, ''));
+            if (!name || isNaN(value)) continue;
+            chartData.push([name, value]);
+          }
+
+          if (chartData.length <= 1) continue;
+
+          const data = google.visualization.arrayToDataTable(chartData);
+          const chartDiv = document.createElement('div');
+          chartDiv.className = 'chart-box';
+          chartsContainer.appendChild(chartDiv);
+
+          const chart = new google.visualization.ColumnChart(chartDiv);
+          chart.draw(data, {
+            title: headers[col] + ' by ' + headers[0],
+            hAxis: { title: headers[0] },
+            vAxis: { title: headers[col] },
+            chartArea: { width: '75%' },
+            legend: { position: 'none' }
+          });
         }
-
-        if (parsed.length <= 1) {
-          document.getElementById('chart_div').innerHTML = '<b>No valid data found.</b>';
-          return;
-        }
-
-        const data = google.visualization.arrayToDataTable(parsed);
-
-        const chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
-        chart.draw(data, {
-          title: 'JS Carpentry Live Data Chart',
-          hAxis: { title: headers[0] },
-          vAxis: { title: headers[1] },
-          chartArea: { width: '75%' },
-          legend: { position: 'none' }
-        });
       } catch (err) {
-        document.getElementById('chart_div').innerHTML = `<b>Error:</b> ${err.message}`;
+        const chartsContainer = document.getElementById('charts_container');
+        chartsContainer.innerHTML = `<b>Error:</b> ${err.message}`;
         console.error('Chart error:', err);
       }
     }
@@ -56,20 +64,24 @@
     h2 {
       margin-bottom: 30px;
     }
-    #chart_div {
+    .chart-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+    }
+    .chart-box {
       background: #fff;
       border-radius: 10px;
       padding: 20px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      width: 90%;
-      max-width: 800px;
-      height: 500px;
-      margin: auto;
+      width: 500px;
+      height: 400px;
     }
   </style>
 </head>
 <body>
   <h2>📊 JS Carpentry Real-Time Dashboard</h2>
-  <div id="chart_div">Loading chart...</div>
+  <div id="charts_container" class="chart-grid">Loading charts...</div>
 </body>
 </html>
